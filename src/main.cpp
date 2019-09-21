@@ -13,23 +13,25 @@ using namespace cv;
 using namespace std;
 
 void exeggutor(vector<Mat> images, 
-			   int n_level, 
+			   int n_level,
+			   int n_level_stop, 
 			   string type,
 			   double *time,
 			   int iterator,
 			   void (*haar)(int, int, Mat, int, double*, int), 
 			   void (*visualizza)(int, int, double*, int), 
-			   void (*inverse)(int, int, Mat, int), 
+			   void (*inverse)(int, int, Mat, int, double*, int), 
 			   void (*threshold)(int, int, double*, int, double), 
 			   double (*mean)(int, int, double*, int),
-			   double *total_time)
+			   double *total_time,
+			   double *total_time_inverse)
 {
 	Mat image, image_double, haar_img, inverse_haar_img;
 	Size s;
 
 	int m, n;
 	bool change_size;
-	//double media;
+	double media;
 
 	for (unsigned i = 0; i < images.size(); i++)
 	{
@@ -54,7 +56,9 @@ void exeggutor(vector<Mat> images,
 		}
 
 		image_double.copyTo(haar_img);
-		if (type == "seq")
+		if (n_level == n_level_stop)
+			visualizza(m, n, (double *)(haar_img.data), n_level);
+		else if (n_level != n_level_stop && type == "seq")
 			visualizza(m, n, (double *)(haar_img.data), n_level);
 		haar_img.convertTo(haar_img, CV_8U);
 		if (change_size)
@@ -67,24 +71,30 @@ void exeggutor(vector<Mat> images,
 		else if (type == "seq")
 			name << "output_img_seq/" << type << "_img" << i << ".png";
 		cv::imwrite(name.str(), haar_img);
-/*
+
 		media = mean(m, n, (double *)(image_double.data), n_level);
 		threshold(m, n, (double *)(image_double.data), n_level, media);
 
-		inverse(m, n, image_double, n_level);
+		iterator = 0;
+		inverse(m, n, image_double, n_level, time, iterator);
+
+		for (int j = 0; j < n_level; j++)
+		{
+			total_time_inverse[j + i * n_level] = time[j];
+		}
 
 		image_double.copyTo(inverse_haar_img);
 		inverse_haar_img.convertTo(inverse_haar_img, CV_8U);
 		if (change_size)
 			resize(inverse_haar_img, inverse_haar_img, s);
-		//SHOW_IMAGE(inverse_haar_img);*/
+		//SHOW_IMAGE(inverse_haar_img);
 	}
 }
 
-void execution_parallel_mix_sequential(int n_level, int n_level_stop, double *time, double *total_time)
+// too much overhead, better not to use this function; set n_level and n_level_stop equal
+void execution_parallel_mix_sequential(int n_level_to_do, int n_level_stop, double *time, double *total_time)
 {
 	vector<Mat> images;
-	int n_level_to_do = n_level - n_level_stop;
 
 	Mat image;
 	int m, n;
@@ -101,21 +111,19 @@ void execution_parallel_mix_sequential(int n_level, int n_level_stop, double *ti
 
 			tie(change_size, m, n) = change_dimension(m, n);
 			if (change_size)
-			{				
+			{			
 				resize(image, image, Size(n, m));
 				images[i] = image;
 			}
 		}
-
+		
 		#pragma omp parallel for private(m, n, image, change_size) shared(n_level_stop, n_level_to_do, time, total_time, images)
 		for (unsigned i = 0; i < images.size(); i++)
 		{
 			image = images[i];
-			m = image.rows;
-			n = image.cols;
 
-			m = (int)(m / pow(2, n_level_stop - 1));
-			n = (int)(n / pow(2, n_level_stop - 1));
+			m = (int)(image.rows / pow(2, n_level_stop - 1));
+			n = (int)(image.cols / pow(2, n_level_stop - 1));
 			haar(m, n, image, n_level_to_do, time, n_level_stop);
 
 			for (int j = 0; j < n_level_to_do; j++)
@@ -126,15 +134,26 @@ void execution_parallel_mix_sequential(int n_level, int n_level_stop, double *ti
 	}
 }
 
-void stampa(vector<Mat> images, int n_level, string type, double *total_time, FILE *f)
+void stampa(vector<Mat> images, int n_level, string type, double *total_time, double *total_time_inverse, FILE *f)
 {
 	fprintf(f, "%s\n", type.c_str());
+	fprintf(f, "HAAR FUNCTION\n");
 	for (unsigned i = 0; i < images.size(); i++)
 	{	
 		fprintf(f, "%d\t|\t", i);
 		for (int j = 0; j < n_level; j++)
 		{
 			fprintf(f, "%lf\t|\t", total_time[j + i * n_level]);
+		}
+		fprintf(f, "\n");
+	}
+	fprintf(f, "INVERSE HAAR FUNCTION\n");
+	for (unsigned i = 0; i < images.size(); i++)
+	{	
+		fprintf(f, "%d\t|\t", i);
+		for (int j = 0; j < n_level; j++)
+		{
+			fprintf(f, "%lf\t|\t", total_time_inverse[j + i * n_level]);
 		}
 		fprintf(f, "\n");
 	}
@@ -152,9 +171,11 @@ int main(int argc, char **argv)
 	int iterator;
 	double *time = (double *)malloc(n_level * sizeof(double));
 	double *total_time_seq = (double *)malloc(images.size() * n_level * sizeof(double));
+	double *total_time_seq_inverse = (double *)malloc(images.size() * n_level * sizeof(double));
 	double *total_time_par = (double *)malloc(images.size() * n_level * sizeof(double));
 	double *total_time_par_first = (double *)malloc(images.size() * n_level_stop * sizeof(double));
 	double *total_time_par_second = (double *)malloc(images.size() * stop * sizeof(double));
+	double *total_time_par_inverse = (double *)malloc(images.size() * n_level * sizeof(double));
 	double tmp, total_seq = 0.0, total_par = 0.0;
 	double p;
 	FILE *f;
@@ -165,17 +186,17 @@ int main(int argc, char **argv)
 	// sequential execution
 	iterator = 0;
 	start = omp_get_wtime();
-	exeggutor(images, n_level, "seq", time, iterator, haar, visualizza_haar, haar_inverse, threshold, mean, total_time_seq);
+	exeggutor(images, n_level, n_level_stop, "seq", time, iterator, haar, visualizza_haar, haar_inverse, threshold, mean, total_time_seq, total_time_seq_inverse);
 	end = omp_get_wtime();
-	stampa(images, n_level, "SEQUENTIAL WORK", total_time_seq, f);
+	stampa(images, n_level, "SEQUENTIAL WORK", total_time_seq, total_time_seq_inverse, f);
 	seq = end - start;
 	fprintf(f, "Sequential work took %lf seconds\n", seq);
 	
 	// parallel execution
 	iterator = 0;
 	start = omp_get_wtime();
-	exeggutor(images, n_level_stop, "par", time, iterator, p_haar, p_visualizza_haar, p_haar_inverse, p_threshold, p_mean, total_time_par_first);
-	execution_parallel_mix_sequential(n_level, n_level_stop, time, total_time_par_second);
+	exeggutor(images, n_level_stop, n_level, "par", time, iterator, p_haar, p_visualizza_haar, p_haar_inverse, p_threshold, p_mean, total_time_par_first, total_time_par_inverse);
+	execution_parallel_mix_sequential(stop, n_level_stop, time, total_time_par_second);
 	end = omp_get_wtime();
 
 	for (unsigned i = 0; i < images.size(); i++)
@@ -190,23 +211,37 @@ int main(int argc, char **argv)
 		}
 	}
 
-	stampa(images, n_level, "PARALLEL WORK", total_time_par, f);
+	stampa(images, n_level, "PARALLEL WORK", total_time_par, total_time_par_inverse, f);
 	prl = end - start;
 	fprintf(f, "Parallel work took %lf seconds\n", prl);
 
 	speed_up = (1.0 - (prl / seq)) * 100;
 	fprintf(f, "Time reduction: %.2lf%%\n", speed_up);
 
-	fprintf(f, "TIME REDUCTION PER LEVEL\n");
+	fprintf(f, "TIME REDUCTION PER LEVEL HAAR\n");
 	for (unsigned i = 0; i < images.size(); i++)
 	{
 		fprintf(f, "%dx%d\t|\t", images[i].cols, images[i].rows);
 		for (int j = 0; j < n_level; j++)
 		{
 			tmp = total_time_seq[j + i * n_level] / total_time_par[j + i * n_level];
-			(tmp < 1.5) ? fprintf(f, "[%lf]\t|\t", tmp) : fprintf(f, "%lf\t|\t", tmp);
+			(tmp < 1.0) ? fprintf(f, "[%lf]\t|\t", tmp) : fprintf(f, "%lf\t|\t", tmp);
 			total_seq += total_time_seq[j + i * n_level];
 			total_par += total_time_par[j + i * n_level];
+		}
+		fprintf(f, "\n");
+	}
+
+	fprintf(f, "TIME REDUCTION PER LEVEL INVERSE HAAR\n");
+	for (unsigned i = 0; i < images.size(); i++)
+	{
+		fprintf(f, "%dx%d\t|\t", images[i].cols, images[i].rows);
+		for (int j = 0; j < n_level; j++)
+		{
+			tmp = total_time_seq_inverse[j + i * n_level] / total_time_par_inverse[j + i * n_level];
+			(tmp < 1.0) ? fprintf(f, "[%lf]\t|\t", tmp) : fprintf(f, "%lf\t|\t", tmp);
+			total_seq += total_time_seq_inverse[j + i * n_level];
+			total_par += total_time_par_inverse[j + i * n_level];
 		}
 		fprintf(f, "\n");
 	}
@@ -220,9 +255,11 @@ int main(int argc, char **argv)
 	fclose(f);
 	free(time);
 	free(total_time_seq);
+	free(total_time_seq_inverse);
 	free(total_time_par_first);
 	free(total_time_par_second);
 	free(total_time_par);
+	free(total_time_par_inverse);
 	
 	return 0;
 }

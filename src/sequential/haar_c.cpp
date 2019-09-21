@@ -81,13 +81,14 @@ void haar_2d_c(int m, int n, double u[], int n_level, int n_fix, double *time, i
 	Inverse 2D-Haar Wavelet transform on rectangular images where the
 	number of rows is less than the number of columns
 */
-void haar_2d_inverse_c(int m, int n, double u[], int n_level)
+void haar_2d_inverse_c(int m, int n, double u[], int n_level, double *time, int iterator)
 {
 	int i, j;
 	int k;
 	int flag_giro = (int)pow(2, n_level - 1);
 	double s = sqrt(2.0);
 	double *v, *w;
+	double start, end;
 
 	v = (double *)malloc(m * n * sizeof(double));
 	w = (double *)malloc(m * n * sizeof(double));
@@ -96,6 +97,8 @@ void haar_2d_inverse_c(int m, int n, double u[], int n_level)
 	int n_fix = n;
 	m = m / flag_giro;
 	n = n / flag_giro;
+
+	start = omp_get_wtime();
 
 	for (i = 0; i < m; i++)
 	{
@@ -142,9 +145,14 @@ void haar_2d_inverse_c(int m, int n, double u[], int n_level)
 	free(v);
 	free(w);
 
+	end = omp_get_wtime();
+	
+	time[iterator] = end - start;
+	iterator++;
+
 	if (n_level > 1)
 	{
 		n_level--;
-		haar_2d_inverse_c(m_fix, n_fix, u, n_level);
+		haar_2d_inverse_c(m_fix, n_fix, u, n_level, time, iterator);
 	}
 }

@@ -16,19 +16,19 @@ void p_haar(int m, int n, Mat image, int n_level, double *time, int iterator)
 	}
 }
 
-void p_haar_inverse(int m, int n, Mat image, int n_level)
+void p_haar_inverse(int m, int n, Mat image, int n_level, double *time, int iterator)
 {
 	if (m == n)
 	{
-		p_haar_2d_inverse(m, n, (double *)(image.data), n_level);
+		p_haar_2d_inverse(m, n, (double *)(image.data), n_level, time, iterator);
 	}
 	if (m < n)
 	{
-		p_haar_2d_inverse_c(m, n, (double *)(image.data), n_level);
+		p_haar_2d_inverse_c(m, n, (double *)(image.data), n_level, time, iterator);
 	}
 	if (m > n)
 	{
-		p_haar_2d_inverse_r(m, n, (double *)(image.data), n_level);
+		p_haar_2d_inverse_r(m, n, (double *)(image.data), n_level, time, iterator);
 	}
 }
 

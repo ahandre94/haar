@@ -6,6 +6,6 @@
 #include <omp.h>
 
 void haar_2d(int m, int n, double u[], int n_level, int n_fix, double *time, int iterator);
-void haar_2d_inverse(int m, int n, double u[], int n_level);
+void haar_2d_inverse(int m, int n, double u[], int n_level, double *time, int iterator);
 
 #endif

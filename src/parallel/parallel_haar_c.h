@@ -6,6 +6,6 @@
 #include <omp.h>
 
 void p_haar_2d_c(int m, int n, double u[], int n_level, int n_fix, double *time, int iterator);
-void p_haar_2d_inverse_c(int m, int n, double u[], int n_level);
+void p_haar_2d_inverse_c(int m, int n, double u[], int n_level, double *time, int iterator);
 
 #endif

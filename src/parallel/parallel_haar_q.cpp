@@ -89,13 +89,14 @@ void p_haar_2d(int m, int n, double u[], int n_level, int n_fix, double *time, i
 /**
 	Parallel version of Inverse 2D-Haar Wavelet transform on square images
 */
-void p_haar_2d_inverse(int m, int n, double u[], int n_level)
+void p_haar_2d_inverse(int m, int n, double u[], int n_level, double *time, int iterator)
 {
 	int i, j;
 	int k;
 	int flag_giro = (int)pow(2, n_level - 1);
 	double s = sqrt(2.0);
 	double *v;
+	double start, end;
 
 	v = (double *)malloc(m * n * sizeof(double));
 
@@ -103,6 +104,8 @@ void p_haar_2d_inverse(int m, int n, double u[], int n_level)
 	int n_fix = n;
 	m = m / flag_giro;
 	n = n / flag_giro;
+
+	start = omp_get_wtime();
 
 	#pragma omp parallel for private(i, j) shared(u, v) collapse(2)
 	for (i = 0; i < m; i++)
@@ -151,11 +154,16 @@ void p_haar_2d_inverse(int m, int n, double u[], int n_level)
 		}
 	}
 
+	end = omp_get_wtime();
+	
+	time[iterator] = end - start;
+	iterator++;
+
 	free(v);
 
 	if (n_level > 1)
 	{
 		n_level--;
-		p_haar_2d_inverse(m_fix, n_fix, u, n_level);
+		p_haar_2d_inverse(m_fix, n_fix, u, n_level, time, iterator);
 	}
 }

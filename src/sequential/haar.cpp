@@ -16,19 +16,19 @@ void haar(int m, int n, Mat image, int n_level, double *time, int iterator)
 	}
 }
 
-void haar_inverse(int m, int n, Mat image, int n_level)
+void haar_inverse(int m, int n, Mat image, int n_level, double *time, int iterator)
 {
 	if (m == n)
 	{
-		haar_2d_inverse(m, n, (double *)(image.data), n_level);
+		haar_2d_inverse(m, n, (double *)(image.data), n_level, time, iterator);
 	}
 	if (m < n)
 	{
-		haar_2d_inverse_c(m, n, (double *)(image.data), n_level);
+		haar_2d_inverse_c(m, n, (double *)(image.data), n_level, time, iterator);
 	}
 	if (m > n)
 	{
-		haar_2d_inverse_r(m, n, (double *)(image.data), n_level);
+		haar_2d_inverse_r(m, n, (double *)(image.data), n_level, time, iterator);
 	}
 }
 

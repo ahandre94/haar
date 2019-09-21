@@ -10,7 +10,7 @@
 using namespace cv;
 
 void p_haar(int m, int n, Mat image, int n_level, double *time, int iterator);
-void p_haar_inverse(int m, int n, Mat image, int n_level);
+void p_haar_inverse(int m, int n, Mat image, int n_level, double *time, int iterator);
 void p_visualizza_haar(int m, int n, double u[], int n_level);
 
 #endif
