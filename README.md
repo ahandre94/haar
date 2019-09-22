@@ -1,4 +1,4 @@
-# haar
+# Haar
 Haar Wavelet 2D
 
 A wavelet is a mathematical function useful in digital signal processing and image compression. Wavelets have been used to compress images to a greater extent than is generally possible with other methods. 
@@ -21,3 +21,8 @@ Original image
 
 Restored image after thresholding
 ![alt restored_lion](https://github.com/ahandre94/haar/blob/master/example/restored_lion.png)
+
+# Requirements
+OpenCV
+
+OpenMP
