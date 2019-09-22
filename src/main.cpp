@@ -24,7 +24,8 @@ void exeggutor(vector<Mat> images,
 			   void (*threshold)(int, int, double*, int, double), 
 			   double (*mean)(int, int, double*, int),
 			   double *total_time,
-			   double *total_time_inverse)
+			   double *total_time_inverse,
+			   double *threshold_time)
 {
 	Mat image, image_double, haar_img, inverse_haar_img;
 	Size s;
@@ -32,6 +33,7 @@ void exeggutor(vector<Mat> images,
 	int m, n;
 	bool change_size;
 	double media;
+	double start = 0.0;
 
 	for (unsigned i = 0; i < images.size(); i++)
 	{
@@ -72,8 +74,12 @@ void exeggutor(vector<Mat> images,
 			name << "output_img_seq/" << type << "_img" << i << ".png";
 		cv::imwrite(name.str(), haar_img);
 
+		if (type == "seq")
+			start = omp_get_wtime();
 		media = mean(m, n, (double *)(image_double.data), n_level);
 		threshold(m, n, (double *)(image_double.data), n_level, media);
+		if (type == "seq")
+			*threshold_time += (omp_get_wtime() - start);
 
 		iterator = 0;
 		inverse(m, n, image_double, n_level, time, iterator);
@@ -159,15 +165,34 @@ void stampa(vector<Mat> images, int n_level, string type, double *total_time, do
 	}
 }
 
+void stampa_time_reduction(vector<Mat> images, int n_level, string type, double *total_time_s, double *total_time_p, FILE *f)
+{
+	double tmp;
+
+	fprintf(f, "TIME REDUCTION PER LEVEL %s\n", type.c_str());
+	for (unsigned i = 0; i < images.size(); i++)
+	{
+		fprintf(f, "%dx%d\t|\t", images[i].cols, images[i].rows);
+		for (int j = 0; j < n_level; j++)
+		{
+			tmp = total_time_s[j + i * n_level] / total_time_p[j + i * n_level];
+			(tmp < 1.0) ? fprintf(f, "[%lf]\t|\t", tmp) : fprintf(f, "%lf\t|\t", tmp);
+		}
+		fprintf(f, "\n");
+	}
+}
+
 int main(int argc, char **argv)
 {
 	vector<Mat> images = load_img("4k");
-
-	double start, end, seq, prl;
-	double speed_up;
+	
 	int n_level = 5;
 	int n_level_stop = 5;
 	int stop = n_level - n_level_stop;
+
+	FILE *f;
+	double start, end, seq, prl;
+	double speed_up, p;
 	int iterator;
 	double *time = (double *)malloc(n_level * sizeof(double));
 	double *total_time_seq = (double *)malloc(images.size() * n_level * sizeof(double));
@@ -176,9 +201,8 @@ int main(int argc, char **argv)
 	double *total_time_par_first = (double *)malloc(images.size() * n_level_stop * sizeof(double));
 	double *total_time_par_second = (double *)malloc(images.size() * stop * sizeof(double));
 	double *total_time_par_inverse = (double *)malloc(images.size() * n_level * sizeof(double));
-	double tmp, total_seq = 0.0, total_par = 0.0;
-	double p;
-	FILE *f;
+	double threshold_time = 0.0;
+	double total_seq = 0.0, total_par = 0.0;
 
 	f = fopen("stats.txt", "a+");
 	fprintf(f, "num_core: %d\nn_level: %d\nn_level_stop: %d\n", omp_get_num_procs(), n_level, n_level_stop);
@@ -186,7 +210,7 @@ int main(int argc, char **argv)
 	// sequential execution
 	iterator = 0;
 	start = omp_get_wtime();
-	exeggutor(images, n_level, n_level_stop, "seq", time, iterator, haar, visualizza_haar, haar_inverse, threshold, mean, total_time_seq, total_time_seq_inverse);
+	exeggutor(images, n_level, n_level_stop, "seq", time, iterator, haar, visualizza_haar, haar_inverse, threshold, mean, total_time_seq, total_time_seq_inverse, &threshold_time);
 	end = omp_get_wtime();
 	stampa(images, n_level, "SEQUENTIAL WORK", total_time_seq, total_time_seq_inverse, f);
 	seq = end - start;
@@ -195,7 +219,7 @@ int main(int argc, char **argv)
 	// parallel execution
 	iterator = 0;
 	start = omp_get_wtime();
-	exeggutor(images, n_level_stop, n_level, "par", time, iterator, p_haar, p_visualizza_haar, p_haar_inverse, p_threshold, p_mean, total_time_par_first, total_time_par_inverse);
+	exeggutor(images, n_level_stop, n_level, "par", time, iterator, p_haar, p_visualizza_haar, p_haar_inverse, p_threshold, p_mean, total_time_par_first, total_time_par_inverse, &threshold_time);
 	execution_parallel_mix_sequential(stop, n_level_stop, time, total_time_par_second);
 	end = omp_get_wtime();
 
@@ -218,38 +242,22 @@ int main(int argc, char **argv)
 	speed_up = (1.0 - (prl / seq)) * 100;
 	fprintf(f, "Time reduction: %.2lf%%\n", speed_up);
 
-	fprintf(f, "TIME REDUCTION PER LEVEL HAAR\n");
+	stampa_time_reduction(images, n_level, "HAAR", total_time_seq, total_time_par, f);
+	stampa_time_reduction(images, n_level, "INVERSE HAAR", total_time_seq_inverse, total_time_par_inverse, f);
+
 	for (unsigned i = 0; i < images.size(); i++)
 	{
-		fprintf(f, "%dx%d\t|\t", images[i].cols, images[i].rows);
 		for (int j = 0; j < n_level; j++)
 		{
-			tmp = total_time_seq[j + i * n_level] / total_time_par[j + i * n_level];
-			(tmp < 1.0) ? fprintf(f, "[%lf]\t|\t", tmp) : fprintf(f, "%lf\t|\t", tmp);
-			total_seq += total_time_seq[j + i * n_level];
-			total_par += total_time_par[j + i * n_level];
+			total_seq += (total_time_seq[j + i * n_level] + total_time_seq_inverse[j + i * n_level]);
+			total_par += (total_time_par[j + i * n_level] + total_time_par_inverse[j + i * n_level]);
 		}
-		fprintf(f, "\n");
 	}
 
-	fprintf(f, "TIME REDUCTION PER LEVEL INVERSE HAAR\n");
-	for (unsigned i = 0; i < images.size(); i++)
-	{
-		fprintf(f, "%dx%d\t|\t", images[i].cols, images[i].rows);
-		for (int j = 0; j < n_level; j++)
-		{
-			tmp = total_time_seq_inverse[j + i * n_level] / total_time_par_inverse[j + i * n_level];
-			(tmp < 1.0) ? fprintf(f, "[%lf]\t|\t", tmp) : fprintf(f, "%lf\t|\t", tmp);
-			total_seq += total_time_seq_inverse[j + i * n_level];
-			total_par += total_time_par_inverse[j + i * n_level];
-		}
-		fprintf(f, "\n");
-	}
-
-	p = total_seq / seq;
-	fprintf(f, "speed up teorico: %lf\n", 1 / (1 - p + (p / omp_get_num_procs())));
-	fprintf(f, "speed up reale: %lf\n", (seq / prl));
-	fprintf(f, "speed up media: %lf\n", (total_seq / total_par));
+	p = (total_seq + threshold_time) / seq;
+	fprintf(f, "theoretical speed up: %lf\n", 1 / (1 - p + (p / omp_get_num_procs())));
+	fprintf(f, "real speed up: %lf\n", (seq / prl));
+	fprintf(f, "haar medium speed up: %lf\n", (total_seq / total_par));
 	fprintf(f, "\n\n\n");	
 
 	fclose(f);
