@@ -140,12 +140,9 @@ void execution_parallel_mix_sequential(int n_level_to_do, int n_level_stop, doub
 	}
 }
 
-void stampa(vector<Mat> images, int n_level, string type, string func, double *total_time, FILE *f)
+void indentation(string type, string func, int n_level, FILE *f)
 {
-	fprintf(f, "%s\n", type.c_str());
-	fprintf(f, "%s\n", func.c_str());
-	fprintf(f, "n_level\t|");
-	if (func == "HAAR FUNCTION")
+	if (type == func)
 	{
 		for (int i = 0; i < n_level; i++)
 		{
@@ -159,6 +156,14 @@ void stampa(vector<Mat> images, int n_level, string type, string func, double *t
 			fprintf(f, "\t%d\t\t|\t", i);
 		}
 	}
+}
+
+void stampa(vector<Mat> images, int n_level, string type, string func, double *total_time, FILE *f)
+{
+	fprintf(f, "%s\n", type.c_str());
+	fprintf(f, "%s\n", func.c_str());
+	fprintf(f, "n_level\t|");
+	indentation(func, "HAAR FUNCTION", n_level, f);
 	fprintf(f, "\n");
 	for (unsigned i = 0; i < images.size(); i++)
 	{	
@@ -178,20 +183,7 @@ void stampa_time_reduction(vector<Mat> images, int n_level, string type, double 
 
 	fprintf(f, "TIME REDUCTION PER LEVEL %s\n", type.c_str());
 	fprintf(f, "n_level\t\t|\t");
-	if (type == "HAAR")
-	{
-		for (int i = 0; i < n_level; i++)
-		{
-			fprintf(f, "\t%d\t\t|\t", i + 1);
-		}
-	}
-	else
-	{
-		for (int i = n_level; i > 0; i--)
-		{
-			fprintf(f, "\t%d\t\t|\t", i);
-		}
-	}
+	indentation(type, "HAAR", n_level, f);
 	fprintf(f, "\n");
 	for (unsigned i = 0; i < images.size(); i++)
 	{
