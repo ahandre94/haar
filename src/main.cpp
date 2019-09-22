@@ -150,7 +150,7 @@ int main(int argc, char **argv)
 
 	double start, end, seq, prl;
 	double speed_up, p;
-	int iterator;
+	int iterator = 0;
 	double *time = (double *)malloc(n_level * sizeof(double));
 	double *total_time_seq = (double *)malloc(images.size() * n_level * sizeof(double));
 	double *total_time_seq_inverse = (double *)malloc(images.size() * n_level * sizeof(double));
@@ -162,14 +162,12 @@ int main(int argc, char **argv)
 	double total_seq = 0.0, total_par = 0.0;
 	
 	// sequential execution
-	iterator = 0;
 	start = omp_get_wtime();
 	exeggutor(images, n_level, n_level_stop, "seq", time, iterator, haar, visualizza_haar, haar_inverse, threshold, mean, total_time_seq, total_time_seq_inverse, &threshold_time);
 	end = omp_get_wtime();
 	seq = end - start;
 	
 	// parallel execution
-	iterator = 0;
 	start = omp_get_wtime();
 	exeggutor(images, n_level_stop, n_level, "par", time, iterator, p_haar, p_visualizza_haar, p_haar_inverse, p_threshold, p_mean, total_time_par_first, total_time_par_inverse, &threshold_time);
 	execution_parallel_mix_sequential(stop, n_level_stop, time, total_time_par_second);
