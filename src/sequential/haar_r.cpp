@@ -28,7 +28,6 @@ void haar_2d_r(int m, int n, double u[], int n_level, int n_fix, double *time, i
 	{
 		for (j = 0; j < n; j++)
 		{
-			v[j + i * n] = u[j + i * n * flag_giro];
 			w[j + i * n] = u[j + i * n * flag_giro];
 		}
 	}
@@ -108,7 +107,6 @@ void haar_2d_inverse_r(int m, int n, double u[], int n_level, double *time, int 
 	{
 		for (j = 0; j < n; j++)
 		{
-			v[j + i * n] = u[j + i * n * flag_giro];
 			w[j + i * n] = u[j + i * n * flag_giro];
 		}
 	}

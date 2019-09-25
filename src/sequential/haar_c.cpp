@@ -23,14 +23,6 @@ void haar_2d_c(int m, int n, double u[], int n_level, int n_fix, double *time, i
 
 	start = omp_get_wtime();
 
-	for (i = 0; i < m; i++)
-	{
-		for (j = 0; j < n; j++)
-		{
-			v[j + i * n] = u[j + i * n * flag_giro];
-		}
-	}
-
 	k = n / 2;
 	for (i = 0; i < m; i++)
 	{
@@ -104,7 +96,6 @@ void haar_2d_inverse_c(int m, int n, double u[], int n_level, double *time, int 
 	{
 		for (j = 0; j < n; j++)
 		{
-			v[j + i * n] = u[j + i * n * flag_giro];
 			w[j + i * n] = u[j + i * n * flag_giro];
 		}
 	}

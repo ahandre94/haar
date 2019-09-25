@@ -24,12 +24,11 @@ void p_haar_2d_r(int m, int n, double u[], int n_level, int n_fix, double *time,
 
 	start = omp_get_wtime();
 
-	#pragma omp parallel for private(i, j) shared(u, v, w) collapse(2)
+	#pragma omp parallel for private(i, j) shared(u, w) collapse(2)
 	for (i = 0; i < m; i++)
 	{
 		for (j = 0; j < n; j++)
 		{
-			v[j + i * n] = u[j + i * n * flag_giro];
 			w[j + i * n] = u[j + i * n * flag_giro];
 		}
 	}
@@ -110,12 +109,11 @@ void p_haar_2d_inverse_r(int m, int n, double u[], int n_level, double *time, in
 	
 	start = omp_get_wtime();
 
-	#pragma omp parallel for private(i, j) shared(u, v, w) collapse(2)
+	#pragma omp parallel for private(i, j) shared(u, w) collapse(2)
 	for (i = 0; i < m; i++)
 	{
 		for (j = 0; j < n; j++)
 		{
-			v[j + i * n] = u[j + i * n * flag_giro];
 			w[j + i * n] = u[j + i * n * flag_giro];
 		}
 	}
